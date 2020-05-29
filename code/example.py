@@ -13,7 +13,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 api_key = os.getenv("DATAROBOT_API_TOKEN")
 host_url = os.getenv("DATAROBOT_ENDPOINT")
-dataset_path = Path(os.getenv("DATASET_FILE_PATH"))
+dataset_path = Path('.').parent.joinpath('data', 'auto-mpg.csv')
 
 # Step 1: Upload a dataset
 form_data = {

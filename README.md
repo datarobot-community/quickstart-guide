@@ -1,32 +1,31 @@
-# PROJECT TITLE
+# Quickstart Guide WIP
 
-TODO: Add a short description of the project.
-It should include the following:
-- What this repository is
-- Who is it for
-- What are the dependencies 
+This project contains the companion code examples for [Quickstart Guide](https://api-docs.datarobot.com/docs/quickstart-guide).
+Available examples:
+* [Curl](code/example.sh)
+* [Python](code/example.py)
 
 ## Usage
-
-TODO: Specify how to use this project
-This can include running the scripts, or where to find API docs if it's a library, command line tool, or similar.
-
-## Repository Contents
-
-TODO: Specify what this repository contains, for example if it contains multiple self contained sub-projects, like with Notebooks scripts that can be used independently.
-
-In some cases you can skip this section.
+```shell script
+git clone git@github.com:datarobot-community/quickstart-guide-wip.git
+cd quickstart-guide-wip
+/bin/bash example.sh
+```
 
 ## Setup/Installation
+### Curl
+If you are on MacOS or Linux `example.sh` will run in a standard terminal. If you are on
+Windows it is recommended you run the Python example.
 
-TODO: Specify what's required to set this project up for usage
-
-In some cases you can skip this section.
+### Python3
+With Python 3.6+:
+```shell script
+python3 example.py
+```
 
 ## Development and Contributing
 
 If you'd like to report an issue or bug, suggest improvements, or contribute code to this project, please refer to [CONTRIBUTING.md](CONTRIBUTING.md).
-
 
 # Code of Conduct
 

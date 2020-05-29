@@ -6,7 +6,7 @@ source ../.env.app2
 
 DATAROBOT_API_TOKEN=${DATAROBOT_API_TOKEN}
 DATAROBOT_ENDPOINT=${DATAROBOT_ENDPOINT}
-DATASET_FILE_PATH=${DATASET_FILE_PATH}
+DATASET_FILE_PATH=$(pwd)'/data/auto-mpg.csv'
 
 # Step 1: Upload a dataset
 location=$(curl -Lsi \
