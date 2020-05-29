@@ -9,7 +9,7 @@ Available examples:
 ```shell script
 git clone git@github.com:datarobot-community/quickstart-guide-wip.git
 cd quickstart-guide-wip
-/bin/bash example.sh
+/bin/bash ./code/example.sh
 ```
 
 ## Setup/Installation
@@ -20,7 +20,7 @@ Windows it is recommended you run the Python example.
 ### Python3
 With Python 3.6+:
 ```shell script
-python3 example.py
+python3 ./code/example.py
 ```
 
 ## Development and Contributing

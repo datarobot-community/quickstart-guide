@@ -57,10 +57,9 @@ while true; do
   fi
 done
 ## Deploy
-server_id=$(curl -Ls -X GET \
+server_data=$(curl -s -X GET \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
-  "${DATAROBOT_ENDPOINT}/predictionServers/" \
-  | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
+  "${DATAROBOT_ENDPOINT}/predictionServers/")
 deployment_response=$(curl -Lsi -X POST \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
   -F 'label="MPG Prediction Server"' \
@@ -70,8 +69,6 @@ deployment_response=$(curl -Lsi -X POST \
   "${DATAROBOT_ENDPOINT}/fromProjectRecommendedModel/")
 deployment_status=$(echo $deployment_response | grep -Eo 'location: .*$' \
   | cut -d " " | tr -d '\r')
-deployment_id=$(echo $deployment_response | grep -Eo 'id":\s"\w+' \
-  | cut -d '"' -f3 | tr -d '\r')
 while true; do
   deployment_ready=$(curl -Ls \
   -X GET \
@@ -85,8 +82,34 @@ while true; do
     echo "Prediction server ready."
   fi
 done
-
+server_url=$(echo $server_data | grep -Eo 'url":\s".*?"' | cut -d '"' -f3 | tr -d '\r')
+server_id=$(echo $server_data | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
+server_key=$(echo $server_data | grep -Eo 'datarobot-key":\s".*?"' | cut -d '"' -f3 \
+  | tr -d '\r')
 # Step 3: Make predictions
-
+# shellcheck disable=SC2089
+autos='[{
+  "cylinders": 4,
+  "displacement": 119.0,
+  "horsepower": 82.00,
+  "weight": 2720.0,
+  "acceleration": 19.4,
+  "model year": 82,
+  "origin":1
+},{
+  "cylinders": 9,
+  "displacement": 119.0,
+  "horsepower": 82.00,
+  "weight": 2720.0,
+  "acceleration": 19.4,
+  "model year": 82,
+  "origin":1
+}]'
+curl -X POST \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
+  -H "datarobot-key: ${server_key}" \
+  --data "${autos}" \
+  "${server_url}/predApi/v1.0/deployments/${server_id}/predictions"
 
 # Step 4: Monitor deployment
