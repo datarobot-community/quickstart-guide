@@ -60,6 +60,7 @@ done
 server_data=$(curl -s -X GET \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
   "${DATAROBOT_ENDPOINT}/predictionServers/")
+server_id=$(echo $server_data | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
 deployment_response=$(curl -Lsi -X POST \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
   -F 'label="MPG Prediction Server"' \
@@ -83,7 +84,6 @@ while true; do
   fi
 done
 server_url=$(echo $server_data | grep -Eo 'url":\s".*?"' | cut -d '"' -f3 | tr -d '\r')
-server_id=$(echo $server_data | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
 server_key=$(echo $server_data | grep -Eo 'datarobot-key":\s".*?"' | cut -d '"' -f3 \
   | tr -d '\r')
 # Step 3: Make predictions
@@ -97,11 +97,11 @@ autos='[{
   "model year": 82,
   "origin":1
 },{
-  "cylinders": 9,
-  "displacement": 119.0,
-  "horsepower": 82.00,
-  "weight": 2720.0,
-  "acceleration": 19.4,
+  "cylinders": 8,
+  "displacement": 120.0,
+  "horsepower": 79.00,
+  "weight": 2625.0,
+  "acceleration": 18.6,
   "model year": 82,
   "origin":1
 }]'
@@ -113,3 +113,6 @@ curl -X POST \
   "${server_url}/predApi/v1.0/deployments/${server_id}/predictions"
 
 # Step 4: Monitor deployment
+curl -s -X GET \
+-H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
+"${DATAROBOT_ENDPOINT}/deployments/5e9e89d1dfea0f0412c35be0/serviceStats/" | jq .
