@@ -54,12 +54,18 @@ else:
 
 # Step 2: Train & Deploy an AI
 # Train
+headers = {}
+headers.update(
+    {
+        "Authorization": f"Bearer {datarobot_api_token}",
+        "Content-Type": "application/json",
+    }
+)
 form_data = {"target": "mpg", "mode": "quick"}
-encoder = MultipartEncoder(fields=form_data)
 train_response = requests.patch(
     f"{datarobot_endpoint}/projects/{project_id}/aim",
-    headers=headers,
-    data=encoder.read(),
+    headers={},
+    json=form_data,
 )
 try:
     assert train_response.status_code == 202
@@ -70,47 +76,82 @@ except AssertionError:
     )
 else:
     while True:
-        project_status = (
+        training_status = (
             requests.get(train_response.headers["location"], headers=headers)
             .json()
             .get("stage", None)
         )
-        if project_status is not None:
-            print("Training AI. Initial best model ready to deploy.")
-            break
+        if training_status is not None:
+            print(
+                "Training AI. This will take a bit. Grab a coffee or catch up on email."
+            )
         else:
             print("Setting up AI training...")
             sleep(10)
+while True:
+    try:
+        project_status = requests.get(
+            f"{datarobot_endpoint}/projects/" f"{project_id}/status",
+            headers=headers,
+        )
+        assert project_status.status_code == 200
+    except AssertionError:
+        print(
+            f"Something went wrong. Status code: {project_status.status_code}, Reason:"
+            f" {project_status.reason}"
+        )
+        exit()
+    else:
+        if project_status.json()['autopilotDone']:
+            print("Autopilot training complete. AI ready to deploy.")
+            break
+        else:
+            print("Autopilot training in progress...")
+            sleep(60)
 # Deploy
-server_data = requests.get(
+recommended_model = requests.get(
+    f"{datarobot_endpoint}/projects/{project_id}/recommendedModels/recommendedModel/",
+    headers=headers
+)
+model_id = recommended_model.json()['modelId']
+
+server_response = requests.get(
     f"{datarobot_endpoint}/predictionServers/", headers=headers
 )
-default_server_id = server_data.json()["data"][0]["id"]
+server_data = server_response.json()["data"][0]
+default_server_id = server_data["id"]
+default_server_url = server_data["url"]
+default_server_key = server_data["datarobot-key"]
+
 request_data = {
-    "label": "MPG Prediction Server",
-    "description": "Automodel deployed with python",
-    "projectId": project_id,
     "defaultPredictionServerId": default_server_id,
+    "modelId": model_id,
+    "description": "Deployed with python",
+    "label": "MPG Prediction Server",
 }
 deploy_response = requests.post(
-    f"{datarobot_endpoint}/fromProjectRecommendedModel/",
+    f"{datarobot_endpoint}/deployments/fromLearningModel",
     headers=headers,
     json=request_data,
 )
-deployment_status = deploy_response.headers["location"]
-while True:
-    deployment_status = requests.get(deployment_status)
-    if deployment_status.json().get("id", None) is not None:
-        print(f"Prediction server ready.")
-        break
-    else:
-        print("Waiting for deployment...")
-        sleep(10)
-server_id = deployment_status.json()["defaultPredictionServer"]["id"]
-server_url = deployment_status.json()["defaultPredictionServer"]["url"]
-server_key = deployment_status.json()["defaultPredictionServer"][
-    "datarobot-key"
-]
+if deploy_response.status_code == 202:
+    deployment_status = deploy_response.headers["location"]
+    while True:
+        deployment_status = requests.get(deployment_status)
+        if deployment_status.json().get("id", None) is not None:
+            print(f"Prediction server ready.")
+            deployment_id = deployment_status.json()["id"]
+            break
+        else:
+            print("Waiting for deployment...")
+            sleep(10)
+elif deploy_response.status_code != 200:
+    print(f"Something went wrong. Status code: {deploy_response.status_code}, "
+          f"Reason: {deploy_response.reason}")
+else:
+    deployment_id = deploy_response.json()["id"]
+    print(f"Prediction server ready.")
+
 # Step 3: Make predictions
 autos = [
     {
@@ -135,19 +176,20 @@ autos = [
 prediction_headers = {
     "Authorization": f"Bearer {datarobot_api_token}",
     "Content-Type": "application/json",
-    "datarobot-key": server_key,
+    "datarobot-key": default_server_key,
 }
 predictions = requests.post(
-    f"{server_url}/predApi/v1.0/deployments/{server_id}/predictions",
+    f"{default_server_url}/predApi/v1.0/deployments/{deployment_id}/predictions",
     headers=prediction_headers,
     data=json.dumps(autos),
 )
 pprint(predictions.json())
 
 # Step 4: Monitor deployment
-service_health_headers = {"Authorization": f"Bearer {datarobot_api_token}"}
+service_health_headers = {"Authorization": f"Bearer {datarobot_api_token}",
+                          "Content-Type": "application/json"}
 service_health = requests.get(
-    f"{datarobot_api_token}/deployments/{server_id}/serviceStats/",
+    f"{datarobot_endpoint}/deployments/{deployment_id}/serviceStats/",
     headers=service_health_headers,
 )
 pprint(service_health.json())
