@@ -64,7 +64,7 @@ headers.update(
 form_data = {"target": "mpg", "mode": "quick"}
 train_response = requests.patch(
     f"{datarobot_endpoint}/projects/{project_id}/aim",
-    headers={},
+    headers=headers,
     json=form_data,
 )
 try:
@@ -83,15 +83,17 @@ else:
         )
         if training_status is not None:
             print(
-                "Training AI. This will take a bit. Grab a coffee or catch up on email."
+                "Training AI. This will take a bit. "
+                "Grab a coffee or catch up on email."
             )
+            break
         else:
             print("Setting up AI training...")
             sleep(10)
 while True:
     try:
         project_status = requests.get(
-            f"{datarobot_endpoint}/projects/" f"{project_id}/status",
+            f"{datarobot_endpoint}/projects/{project_id}/status",
             headers=headers,
         )
         assert project_status.status_code == 200
