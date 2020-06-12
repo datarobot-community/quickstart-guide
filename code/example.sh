@@ -38,54 +38,97 @@ done
 response=$(curl -Lsi \
   -X PATCH \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
-  -F 'target="mpg"' \
-  -F 'mode="quick"' \
+  -H "Content-Type: application/json" \
+  --data '{"target": "mpg", "mode": "quick"}' \
   "${DATAROBOT_ENDPOINT}/projects/${project_id}/aim" | grep 'location: .*$' \
   | cut -d " " | tr -d '\r')
 echo "AI training initiated. Checking status of training at: ${response}"
 while true; do
-  project_status=$(curl -Ls \
+  initial_project_status=$(curl -Ls \
     -X GET \
     -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" "${response}" \
     | grep -Eo 'stage":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
-  if [ "${project_status}" = "" ]
+  if [ "${initial_project_status}" = "" ]
   then
     echo "Setting up AI training..."
     sleep 10
   else
-    echo "Training AI. Initial best model ready to deploy."
+    echo "Training AI. This will take a bit."
+    echo "Grab a coffee or catch up on email."
+    break
+  fi
+done
+
+while true; do
+  project_status=$(curl -Lsi \
+    -X GET \
+    -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
+    "${DATAROBOT_ENDPOINT}/projects/${project_id}/status" \
+    | grep -Eo 'autopilotDone":\strue'
+  )
+  if [ "${project_status}" = "" ]
+  then
+    echo "Autopilot training in progress..."
+    sleep 60
+  else
+    echo "Autopilot training complete. AI ready to deploy."
+    break
   fi
 done
 ## Deploy
+recommended_model_id=$(curl -s \
+  -X GET \
+  -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
+  "${DATAROBOT_ENDPOINT}/projects/${project_id}/recommendedModels"\
+  "/recommendedModel/" \
+  | grep -Eo 'modelId":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
 server_data=$(curl -s -X GET \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
   "${DATAROBOT_ENDPOINT}/predictionServers/")
-server_id=$(echo $server_data | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
+default_server_id=$(echo $server_data \
+  | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
+server_url=$(echo $server_data | grep -Eo 'url":\s".*?"' \
+  | cut -d '"' -f3 | tr -d '\r')
+server_key=$(echo $server_data | grep -Eo 'datarobot-key":\s".*?"' \
+  | cut -d '"' -f3 | tr -d '\r')
+read -r -d '' request_data<<EOF
+{
+        "defaultPredictionServerId":"${default_server_id}",
+        "modelId":"${recommended_model_id}",
+        "description":"Deployed with curl",
+        "label":"MPG Prediction Server"
+}
+EOF
 deployment_response=$(curl -Lsi -X POST \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
-  -F 'label="MPG Prediction Server"' \
-  -F 'description="Automodel deployed"' \
-  -F 'projectId='"\"${project_id}\"" \
-  -F 'defaultPredictionServerId='"\"${server_id}\"" \
-  "${DATAROBOT_ENDPOINT}/fromProjectRecommendedModel/")
-deployment_status=$(echo $deployment_response | grep -Eo 'location: .*$' \
-  | cut -d " " | tr -d '\r')
-while true; do
-  deployment_ready=$(curl -Ls \
-  -X GET \
-  -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" "${deployment_status}" \
-  | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
-  if [ "${deployment_ready}" = "" ]
-  then
-    echo "Waiting for deployment..."
-    sleep 10
-  else
-    echo "Prediction server ready."
-  fi
-done
-server_url=$(echo $server_data | grep -Eo 'url":\s".*?"' | cut -d '"' -f3 | tr -d '\r')
-server_key=$(echo $server_data | grep -Eo 'datarobot-key":\s".*?"' | cut -d '"' -f3 \
-  | tr -d '\r')
+  -H "Content-Type: application/json" \
+  --data "${request_data}" \
+  "${DATAROBOT_ENDPOINT}/deployments/fromLearningModel/")
+deploy_response_code_202=$(echo $deployment_response | grep -Eo 'HTTP/2 202')
+if [ "${deploy_response_code_202}" = "" ]
+then
+  deployment_id=$(echo "$deployment_response" | grep -Eo 'id":\s"\w+' \
+    | cut -d '"' -f3 | tr -d '\r')
+  echo "Prediction server ready."
+else
+  deployment_status=$(echo "$deployment_response" | grep -Eo 'location: .*$' \
+    | cut -d " " | tr -d '\r')
+  while true; do
+    deployment_ready=$(curl -Ls \
+    -X GET \
+    -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" "${deployment_status}" \
+    | grep -Eo 'id":\s"\w+' | cut -d '"' -f3 | tr -d '\r')
+    if [ "${deployment_ready}" = "" ]
+    then
+      echo "Waiting for deployment..."
+      sleep 10
+    else
+      deployment_id=$deployment_ready
+      echo "Prediction server ready."
+      break
+    fi
+  done
+fi
 # Step 3: Make predictions
 # shellcheck disable=SC2089
 autos='[{
@@ -110,9 +153,10 @@ curl -X POST \
   -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
   -H "datarobot-key: ${server_key}" \
   --data "${autos}" \
-  "${server_url}/predApi/v1.0/deployments/${server_id}/predictions"
+  "${server_url}/predApi/v1.0/deployments/${deployment_id}/predictions"
 
 # Step 4: Monitor deployment
 curl -s -X GET \
--H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
-"${DATAROBOT_ENDPOINT}/deployments/5e9e89d1dfea0f0412c35be0/serviceStats/" | jq .
+  -H "Authorization: Bearer ${DATAROBOT_API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "${DATAROBOT_ENDPOINT}/deployments/${deployment_id}/serviceStats/"
