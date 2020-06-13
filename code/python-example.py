@@ -71,7 +71,8 @@ try:
     assert train_response.status_code == 202
 except AssertionError:
     print(
-        f"Status code: {train_response.status_code}, Reason: {train_response.reason}, "
+        f"Status code: {train_response.status_code}, "
+        f"Reason: {train_response.reason}, "
         f"Details: {train_response.content}"
     )
 else:
@@ -99,12 +100,12 @@ while True:
         assert project_status.status_code == 200
     except AssertionError:
         print(
-            f"Something went wrong. Status code: {project_status.status_code}, Reason:"
-            f" {project_status.reason}"
+            f"Something went wrong. Status code: {project_status.status_code}, "
+            f"Reason: {project_status.reason}"
         )
         exit()
     else:
-        if project_status.json()['autopilotDone']:
+        if project_status.json()["autopilotDone"]:
             print("Autopilot training complete. AI ready to deploy.")
             break
         else:
@@ -112,10 +113,11 @@ while True:
             sleep(60)
 # Deploy
 recommended_model = requests.get(
-    f"{datarobot_endpoint}/projects/{project_id}/recommendedModels/recommendedModel/",
-    headers=headers
+    f"{datarobot_endpoint}/projects/{project_id}/recommendedModels/"
+    f"recommendedModel/",
+    headers=headers,
 )
-model_id = recommended_model.json()['modelId']
+model_id = recommended_model.json()["modelId"]
 
 server_response = requests.get(
     f"{datarobot_endpoint}/predictionServers/", headers=headers
@@ -148,8 +150,10 @@ if deploy_response.status_code == 202:
             print("Waiting for deployment...")
             sleep(10)
 elif deploy_response.status_code != 200:
-    print(f"Something went wrong. Status code: {deploy_response.status_code}, "
-          f"Reason: {deploy_response.reason}")
+    print(
+        f"Something went wrong. Status code: {deploy_response.status_code}, "
+        f"Reason: {deploy_response.reason}"
+    )
 else:
     deployment_id = deploy_response.json()["id"]
     print(f"Prediction server ready.")
@@ -181,15 +185,18 @@ prediction_headers = {
     "datarobot-key": default_server_key,
 }
 predictions = requests.post(
-    f"{default_server_url}/predApi/v1.0/deployments/{deployment_id}/predictions",
+    f"{default_server_url}/predApi/v1.0/deployments/{deployment_id}"
+    f"/predictions",
     headers=prediction_headers,
     data=json.dumps(autos),
 )
 pprint(predictions.json())
 
 # Step 4: Monitor deployment
-service_health_headers = {"Authorization": f"Bearer {datarobot_api_token}",
-                          "Content-Type": "application/json"}
+service_health_headers = {
+    "Authorization": f"Bearer {datarobot_api_token}",
+    "Content-Type": "application/json",
+}
 service_health = requests.get(
     f"{datarobot_endpoint}/deployments/{deployment_id}/serviceStats/",
     headers=service_health_headers,
