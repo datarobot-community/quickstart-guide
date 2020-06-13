@@ -4,14 +4,10 @@ Guidelines for developing and contributing to this project.
 
 ## List of project maintainers
 
-//TODO: Update with your details
-
-- [Your name](https://github.com/your-github-username)
-- [Someone else name](https://github.com/your-github-username)
+- [gonzo](https://github.com/dgonzo)
+- [zan](https://github.com/zmarkan)
 
 ## Opening new issues
-
-//TODO: Adjust if necessary
 
 - Before opening a new issue check if there are any existing FAQ entries (if one exists), issues or pull requests that match your case
 - Open an issue, and make sure to label the issue accordingly - bug, improvement, feature request, etc...
@@ -20,21 +16,26 @@ Guidelines for developing and contributing to this project.
 
 ## Setting up the development environment
 
-//TODO: This will differ for any project
-
-- Install dependencies: Docker, npm, etc..
 - Checkout the project
-- Create a DataRobot key, and add the credentials to your environment variables...
-- Run npm build
-- Make some tea
+- Make a branch for your improvement
+- Install dependencies:
+    - plugin to your editor that honors [editorconfig](https://editorconfig.org/)
+    - Python contributions:
+        - lint with [black](https://black.readthedocs.io/en/stable/)
+        - install dependencies based on the example you are improving
+            - e.g. python: pip install -r dependencies/python/requirements.txt
+            - e.g. datarobot client: pip install -r dependencies/datarobot-client/requirements.txt
+- Create a `.env` file following `example.env`
+- Create a DataRobot key, and add the credentials to your environment variables
+- Make changes and commit
+- Issue a Pull Request with your changes
 
 ## Project structure
-
-TODO: This will differ for any project
+If you wish to add a code example in new language add it to the `code` directory
+in a file named `<language>-example.<extension>`. If it needs a dependencies
+ declaration create a subdirectory in `dependencies`.
 
 ## Making a pull request
-
-TODO: This might differ for some projects 
 
 - Have a branch with a descriptive name
 - Squash / rebase your commits before opening your pull request
